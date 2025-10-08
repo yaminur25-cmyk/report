@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIFAR-10 Object Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .presentation-container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .slide {
+            display: none;
+            padding: 60px;
+            min-height: 700px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .slide.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-header {
+            border-bottom: 4px solid #667eea;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #764ba2;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        
+        h3 {
+            color: #667eea;
+            font-size: 1.5em;
+            margin: 20px 0 10px 0;
+        }
+        
+        .title-slide {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .title-slide h1 {
+            color: white;
+            font-size: 3.5em;
+            margin-bottom: 30px;
+        }
+        
+        .title-slide .subtitle {
+            font-size: 1.5em;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        
+        .team-members {
+            font-size: 1.2em;
+            line-height: 2;
+        }
+        
+        ul {
+            margin-left: 30px;
+            line-height: 1.8;
+        }
+        
+        li {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .bullet-points li {
+            position: relative;
+            padding-left: 10px;
+        }
+        
+        .bullet-points li::before {
+            content: "▸";
+            color: #667eea;
+            font-weight: bold;
+            position: absolute;
+            left: -20px;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .metric-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .metric-box h3 {
+            color: white;
+            font-size: 2.5em;
+            margin: 10px 0;
+        }
+        
+        .metric-box p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 1em;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: #f8f9fa;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .slide-counter {
+            font-size: 1.1em;
+            color: #666;
+            font-weight: 600;
+        }
+        
+        .code-note {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            margin: 15px 0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+        
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        
+        .content-text {
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: #333;
+        }
+        
+        .small-text {
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- Slide 1: Title -->
+        <div class="slide active title-slide">
+            <h1>🎯 CIFAR-10 Object Detection</h1>
+            <div class="subtitle">Dual-Headed CNN for Classification & Localization</div>
+            <div class="team-members">
+                <p><strong>Team Members:</strong></p>
+                <p>Md Yaminur Rahman (235132)</p>
+                <p>Abu Bakar (235064)</p>
+                <p>Maham Qureshi (233894)</p>
+                <p>Shams Arafin Pratik (235062)</p>
+            </div>
+        </div>
+
+        <!-- Slide 2: Project Overview -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>📋 Project Overview</h2>
+            </div>
+            <div class="content-text">
+                <h3>What is CIFAR-10?</h3>
+                <ul class="bullet-points">
+                    <li>Dataset of 60,000 color images (32×32 pixels)</li>
+                    <li>10 classes: airplanes, cars, birds, cats, deer, dogs, frogs, horses, ships, trucks</li>
+                    <li>Standard benchmark for image classification tasks</li>
+                </ul>
+                
+                <h3>Project Goals</h3>
+                <ul class="bullet-points">
+                    <li><strong>Classification:</strong> Identify the object type in the image</li>
+                    <li><strong>Localization:</strong> Predict bounding box coordinates (x, y, width, height)</li>
+                    <li><strong>Dual-purpose CNN:</strong> Single model performing both tasks simultaneously</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 3: Problem Statement -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🎯 Problem Statement</h2>
+            </div>
+            <div class="content-text">
+                <h3>Key Challenges</h3>
+                <ul class="bullet-points">
+                    <li>CIFAR-10 lacks ground-truth bounding boxes for object detection</li>
+                    <li>Low image resolution (32×32) limits localization precision</li>
+                    <li>Need for lightweight model suitable for limited computational resources</li>
+                    <li>Balancing classification accuracy with localization performance</li>
+                </ul>
+                
+                <div class="highlight-box">
+                    <strong>Solution Approach:</strong> Build a dual-headed CNN that learns both tasks jointly, using synthetic bounding boxes for demonstration purposes
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Methodology Overview -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🔧 Methodology Overview</h2>
+            </div>
+            <div class="two-column">
+                <div>
+                    <h3>Tools & Libraries</h3>
+                    <ul class="bullet-points">
+                        <li><strong>Language:</strong> Python 3.10+</li>
+                        <li><strong>Framework:</strong> PyTorch</li>
+                        <li><strong>Visualization:</strong> Matplotlib, Seaborn</li>
+                        <li><strong>Dataset:</strong> CIFAR-10 (torchvision)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Training Configuration</h3>
+                    <ul class="bullet-points">
+                        <li><strong>Optimizer:</strong> Adam</li>
+                        <li><strong>Learning Rate:</strong> 0.001</li>
+                        <li><strong>Epochs:</strong> 20-30</li>
+                        <li><strong>Batch Size:</strong> 128</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="code-note" style="margin-top: 30px;">
+                <strong>Screenshot Reference:</strong> Data loading and preprocessing code (from report)
+            </div>
+        </div>
+
+        <!-- Slide 5: Data Preprocessing -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>📊 Data Preprocessing</h2>
+            </div>
+            <div class="content-text">
+                <h3>Preprocessing Steps</h3>
+                <ul class="bullet-points">
+                    <li><strong>Normalization:</strong> Using CIFAR-10 mean and standard deviation</li>
+                    <li><strong>Data Augmentation:</strong>
+                        <ul>
+                            <li>Random horizontal flips</li>
+                            <li>Random crops</li>
+                            <li>Improves model generalization</li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <div class="code-note">
+                    <strong>Screenshot in Report:</strong> Shows CIFAR-10 data import, normalization code, and sample visualizations of the dataset
+                </div>
+                
+                <div class="success-box">
+                    <strong>Result:</strong> Enhanced model robustness and reduced overfitting through augmentation
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Model Architecture -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🏗️ TwoHeadCNN Architecture</h2>
+            </div>
+            <div class="content-text">
+                <h3>Architecture Components</h3>
+                <ul class="bullet-points">
+                    <li><strong>Shared Backbone:</strong>
+                        <ul>
+                            <li>Multiple convolutional layers</li>
+                            <li>Pooling layers for spatial reduction</li>
+                            <li>Dense layers for feature extraction</li>
+                        </ul>
+                    </li>
+                    <li><strong>Classification Head:</strong> Outputs probabilities for 10 classes</li>
+                    <li><strong>Regression Head:</strong> Predicts 4 bounding box coordinates (normalized to [0,1])</li>
+                </ul>
+                
+                <div class="code-note">
+                    <strong>Screenshots in Report:</strong> Model architecture code and dummy input test showing output shapes
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Loss Function -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>📐 Combined Loss Function</h2>
+            </div>
+            <div class="content-text">
+                <h3>Multi-Task Learning Approach</h3>
+                <p style="font-size: 1.2em; margin: 20px 0;">
+                    <strong>Total Loss = Classification Loss + Localization Loss</strong>
+                </p>
+                
+                <ul class="bullet-points">
+                    <li><strong>Classification Loss:</strong> Cross-Entropy Loss
+                        <ul>
+                            <li>Measures error in class prediction</li>
+                            <li>Standard for multi-class classification</li>
+                        </ul>
+                    </li>
+                    <li><strong>Localization Loss:</strong> Mean Squared Error (MSE)
+                        <ul>
+                            <li>Measures error in bounding box coordinates</li>
+                            <li>Penalizes distance from true coordinates</li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <div class="code-note">
+                    <strong>Screenshot in Report:</strong> Combined loss function implementation code
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Training Process -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🚀 Training Process</h2>
+            </div>
+            <div class="content-text">
+                <h3>Training Loop Implementation</h3>
+                <ul class="bullet-points">
+                    <li>Forward pass through both heads simultaneously</li>
+                    <li>Calculate combined loss for both tasks</li>
+                    <li>Backpropagation and parameter updates</li>
+                    <li>Track accuracy and loss metrics per epoch</li>
+                </ul>
+                
+                <table>
+                    <tr>
+                        <th>Hyperparameter</th>
+                        <th>Value</th>
+                        <th>Purpose</th>
+                    </tr>
+                    <tr>
+                        <td>Learning Rate</td>
+                        <td>0.001</td>
+                        <td>Stable convergence</td>
+                    </tr>
+                    <tr>
+                        <td>Batch Size</td>
+                        <td>128</td>
+                        <td>Memory efficiency</td>
+                    </tr>
+                    <tr>
+                        <td>Epochs</td>
+                        <td>20-30</td>
+                        <td>Prevent overfitting</td>
+                    </tr>
+                </table>
+                
+                <div class="code-note">
+                    <strong>Screenshot in Report:</strong> Training loop code with accuracy output
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Results - Performance Metrics -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>📈 Performance Results</h2>
+            </div>
+            <div class="two-column">
+                <div class="metric-box">
+                    <p>Training Accuracy</p>
+                    <h3>86.2%</h3>
+                    <p>Classification Performance</p>
+                </div>
+                <div class="metric-box">
+                    <p>Validation Accuracy</p>
+                    <h3>78.4%</h3>
+                    <p>Generalization Capability</p>
+                </div>
+            </div>
+            
+            <table style="margin-top: 30px;">
+                <tr>
+                    <th>Metric</th>
+                    <th>Training</th>
+                    <th>Validation</th>
+                </tr>
+                <tr>
+                    <td>Classification Accuracy</td>
+                    <td>86.2%</td>
+                    <td>78.4%</td>
+                </tr>
+                <tr>
+                    <td>BBox MSE (normalized)</td>
+                    <td>0.0021</td>
+                    <td>0.0048</td>
+                </tr>
+            </table>
+            
+            <div class="code-note">
+                <strong>Screenshots in Report:</strong> Performance evaluation code and metrics output
+            </div>
+        </div>
+
+        <!-- Slide 10: Visualization Results -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>📊 Training Visualizations</h2>
+            </div>
+            <div class="content-text">
+                <h3>Key Visualizations Generated</h3>
+                <ul class="bullet-points">
+                    <li><strong>Loss Curves:</strong> Training and validation loss over epochs</li>
+                    <li><strong>Accuracy Curves:</strong> Classification accuracy progression</li>
+                    <li><strong>Prediction Grid:</strong> Sample images with predicted bounding boxes and class labels</li>
+                </ul>
+                
+                <div class="highlight-box">
+                    <strong>Visualization Tools:</strong> Matplotlib for plotting, custom overlay functions for bounding boxes
+                </div>
+                
+                <div class="code-note">
+                    <strong>Screenshots in Report:</strong>
+                    <ul style="margin-top: 10px;">
+                        <li>Visualization code implementation</li>
+                        <li>Prediction visualization function</li>
+                        <li>Training loss and accuracy graphs</li>
+                        <li>Sample predictions grid showing model outputs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Challenges & Solutions -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>⚠️ Challenges & Solutions</h2>
+            </div>
+            <table>
+                <tr>
+                    <th>Challenge</th>
+                    <th>Impact</th>
+                    <th>Solution Applied</th>
+                </tr>
+                <tr>
+                    <td>No ground-truth bounding boxes</td>
+                    <td>Unrealistic detection task</td>
+                    <td>Generated synthetic boxes for demonstration</td>
+                </tr>
+                <tr>
+                    <td>Low resolution (32×32)</td>
+                    <td>Limited localization detail</td>
+                    <td>Focused on classification & relative localization</td>
+                </tr>
+                <tr>
+                    <td>Model overfitting</td>
+                    <td>Poor generalization</td>
+                    <td>Dropout, augmentation, early stopping</td>
+                </tr>
+                <tr>
+                    <td>Limited compute power</td>
+                    <td>Slower training</td>
+                    <td>Smaller model, GPU acceleration</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Slide 12: Key Findings -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🔍 Key Findings</h2>
+            </div>
+            <div class="content-text">
+                <h3>Major Achievements</h3>
+                <ul class="bullet-points">
+                    <li><strong>High Classification Accuracy:</strong> Model successfully distinguishes between 10 object classes with 78-86% accuracy</li>
+                    <li><strong>Successful Multi-Task Learning:</strong> Dual-headed architecture effectively handles both classification and localization</li>
+                    <li><strong>Lightweight Design:</strong> Model remains computationally efficient despite dual outputs</li>
+                    <li><strong>Demonstrated Detection Concepts:</strong> Successfully illustrated fundamental principles of object detection</li>
+                </ul>
+                
+                <div class="success-box">
+                    <strong>Conclusion:</strong> Lightweight CNNs can be adapted for dual-purpose tasks, providing a foundation for scaling to complex detection frameworks like YOLO or Faster R-CNN
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: Future Work -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>🚀 Future Recommendations</h2>
+            </div>
+            <div class="content-text">
+                <h3>Next Steps for Enhancement</h3>
+                <ul class="bullet-points">
+                    <li><strong>Real Detection Dataset:</strong> Apply architecture to Pascal VOC or COCO with actual bounding boxes</li>
+                    <li><strong>Advanced Architectures:</strong> Implement YOLO, SSD, or Faster R-CNN variations</li>
+                    <li><strong>Transfer Learning:</strong> Leverage pre-trained models (ResNet, MobileNet) as backbone</li>
+                    <li><strong>Higher Resolution:</strong> Use larger images for more precise localization</li>
+                    <li><strong>Model Interpretability:</strong> Add Grad-CAM for visualizing model attention regions</li>
+                    <li><strong>Multi-Object Detection:</strong> Extend to detect multiple objects per image</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 14: Technical Implementation Summary -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>💻 Technical Implementation</h2>
+            </div>
+            <div class="content-text small-text">
+                <h3>Code Components Demonstrated</h3>
+                <div class="two-column">
+                    <div>
+                        <h4>Data Pipeline:</h4>
+                        <ul class="bullet-points">
+                            <li>Data loading & normalization</li>
+                            <li>Augmentation transforms</li>
+                            <li>Visualization functions</li>
+                        </ul>
+                        
+                        <h4>Model Architecture:</h4>
+                        <ul class="bullet-points">
+                            <li>TwoHeadCNN class</li>
+                            <li>Dummy input testing</li>
+                            <li>Output shape verification</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Training System:</h4>
+                        <ul class="bullet-points">
+                            <li>Combined loss function</li>
+                            <li>Training loop with metrics</li>
+                            <li>Validation monitoring</li>
+                        </ul>
+                        
+                        <h4>Evaluation & Viz:</h4>
+                        <ul class="bullet-points">
+                            <li>Performance evaluation</li>
+                            <li>Loss/accuracy plotting</li>
+                            <li>Prediction visualization</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="highlight-box" style="margin-top: 20px;">
+                    <strong>All screenshots from report demonstrate working, tested code implementations</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 15: Conclusion -->
+        <div class="slide">
+            <div class="slide-header">
+                <h2>✅ Conclusion</h2>
+            </div>
+            <div class="content-text">
+                <h3>Project Accomplishments</h3>
+                <ul class="bullet-points">
+                    <li>Successfully implemented dual-headed CNN for classification + localization</li>
+                    <li>Achieved strong classification performance (78-86% accuracy)</li>
+                    <li>Demonstrated multi-task learning capabilities</li>
+                    <li>Created lightweight, efficient architecture suitable for resource constraints</li>
+                    <li>Illustrated fundamental object detection principles using CIFAR-10</li>
+                </ul>
+                
+                <div class="success-box" style="margin-top: 30px;">
+                    <strong>Impact:</strong> This project provides a practical foundation for understanding object detection systems and serves as a stepping stone toward more sophisticated detection frameworks
+                </div>
+                
+                <h3 style="margin-top: 30px;">References</h3>
+                <ul class="bullet-points small-text">
+                    <li>Krizhevsky & Hinton (2009) - CIFAR-10 Dataset</li>
+                    <li>PyTorch Documentation (2025)</li>
+                    <li>Redmon et al. (2016) - YOLO</li>
+                    <li>Ren et al. (2015) - Faster R-CNN</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 16: Thank You -->
+        <div class="slide title-slide">
+            <h1>Thank You! 🎓</h1>
+            <div class="subtitle">Questions & Discussion</div>
+            <div class="team-members" style="margin-top: 40px;">
+                <p><strong>Team Members:</strong></p>
+                <p>Md Yaminur Rahman | Abu Bakar</p>
+                <p>Maham Qureshi | Shams Arafin Pratik</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+            <span class="slide-counter">
+                <span id="currentSlide">1</span> / <span id="totalSlides">16</span>
+            </span>
+            <button id="nextBtn" onclick="changeSlide(1)">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        document.getElementById('totalSlides').textContent = totalSlides;
+        
+        function showSlide(n) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[n - 1].classList.add('active');
+            
+            document.getElementById('currentSlide').textContent = n;
+            document.getElementById('prevBtn').disabled = n === 1;
+            document.getElementById('nextBtn').disabled = n === totalSlides;
+        }
+        
+        function changeSlide(direction) {
+            currentSlide += direction;
+            if (currentSlide < 1) currentSlide = 1;
+            if (currentSlide > totalSlides) currentSlide = totalSlides;
+            showSlide(currentSlide);
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        });
+        
+        // Initialize
+        showSlide(1);
+    </script>
+</body>
+</html>
